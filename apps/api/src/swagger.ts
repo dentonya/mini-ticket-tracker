@@ -9,6 +9,7 @@ export function createOpenApiDocument(app: INestApplication): OpenAPIObject {
     .setDescription('REST API for creating, listing, updating and reporting on support tickets.')
     .setVersion('0.1.0')
     .addTag('tickets')
+    .addTag('activity')
     .build();
   return SwaggerModule.createDocument(app, config);
 }

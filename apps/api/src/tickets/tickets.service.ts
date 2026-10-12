@@ -6,7 +6,9 @@ import {
 } from '@mtt/shared';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
+import { ActivityService } from '../activity/activity.service';
+import { diffTicket, initialValues } from '../activity/ticket-changes';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { ListTicketsQueryDto } from './dto/list-tickets.query';
 import { UpdateTicketDto } from './dto/update-ticket.dto';
@@ -14,15 +16,30 @@ import { Ticket } from './ticket.entity';
 
 @Injectable()
 export class TicketsService {
-  constructor(@InjectRepository(Ticket) private readonly tickets: Repository<Ticket>) {}
+  constructor(
+    @InjectRepository(Ticket) private readonly tickets: Repository<Ticket>,
+    private readonly dataSource: DataSource,
+    private readonly activity: ActivityService,
+  ) {}
 
   create(dto: CreateTicketDto): Promise<Ticket> {
-    const ticket = this.tickets.create({
-      title: dto.title,
-      description: dto.description || null,
-      priority: dto.priority,
+    return this.dataSource.transaction(async (manager) => {
+      const repo = manager.getRepository(Ticket);
+      const ticket = await repo.save(
+        repo.create({
+          title: dto.title,
+          description: dto.description || null,
+          priority: dto.priority,
+        }),
+      );
+      await this.activity.record(manager, {
+        ticketId: ticket.id,
+        ticketTitle: ticket.title,
+        type: 'created',
+        changes: initialValues(ticket),
+      });
+      return ticket;
     });
-    return this.tickets.save(ticket);
   }
 
   async list({ status, page, limit }: ListTicketsQueryDto): Promise<PaginatedResponse<Ticket>> {
@@ -59,15 +76,47 @@ export class TicketsService {
       );
     }
 
-    const ticket = await this.findOne(id);
-    return this.tickets.save(this.tickets.merge(ticket, changes));
+    return this.dataSource.transaction(async (manager) => {
+      const repo = manager.getRepository(Ticket);
+      const ticket = await this.findForWrite(repo, id);
+      const diff = diffTicket(ticket, changes);
+      // Re-sending current values is a no-op: nothing is written and nothing is logged.
+      if (Object.keys(diff).length === 0) return ticket;
+
+      const saved = await repo.save(repo.merge(ticket, changes));
+      await this.activity.record(manager, {
+        ticketId: id,
+        ticketTitle: saved.title,
+        type: 'updated',
+        changes: diff,
+      });
+      return saved;
+    });
   }
 
-  async remove(id: number): Promise<void> {
-    const { affected } = await this.tickets.delete({ id });
-    if (!affected) {
+  remove(id: number): Promise<void> {
+    return this.dataSource.transaction(async (manager) => {
+      const repo = manager.getRepository(Ticket);
+      const ticket = await this.findForWrite(repo, id);
+      await repo.delete({ id });
+      await this.activity.record(manager, {
+        ticketId: id,
+        ticketTitle: ticket.title,
+        type: 'deleted',
+      });
+    });
+  }
+
+  /**
+   * Loads a ticket with a row lock, so concurrent writes are serialised and each logged diff
+   * is computed against the value it actually replaced.
+   */
+  private async findForWrite(repo: Repository<Ticket>, id: number): Promise<Ticket> {
+    const ticket = await repo.findOne({ where: { id }, lock: { mode: 'pessimistic_write' } });
+    if (!ticket) {
       throw new NotFoundException(`Ticket ${id} not found`);
     }
+    return ticket;
   }
 
   async stats(): Promise<TicketStats> {

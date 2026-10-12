@@ -70,3 +70,35 @@ export interface ApiErrorBody {
   error: string;
   message: string | string[];
 }
+
+/* ---------------------------------------------------------------- Activity log --- */
+
+export const TICKET_EVENT_TYPES = ['created', 'updated', 'deleted'] as const;
+export type TicketEventType = (typeof TICKET_EVENT_TYPES)[number];
+
+/** Fields whose changes are recorded in the activity log. */
+export type TrackedTicketField = 'title' | 'description' | 'status' | 'priority';
+
+/**
+ * Old and new value of each field that changed. `from` is null on creation; only fields
+ * that actually changed are present.
+ */
+export type TicketChanges = {
+  [K in TrackedTicketField]?: { from: Ticket[K] | null; to: Ticket[K] };
+};
+
+/** One entry in the activity log. Entries outlive their ticket, so the title is a snapshot. */
+export interface TicketEvent {
+  id: number;
+  ticketId: number;
+  ticketTitle: string;
+  type: TicketEventType;
+  changes: TicketChanges;
+  createdAt: string;
+}
+
+export interface ListActivityQuery {
+  ticketId?: number;
+  page?: number;
+  limit?: number;
+}

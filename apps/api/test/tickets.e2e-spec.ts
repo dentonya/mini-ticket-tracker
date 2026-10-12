@@ -19,7 +19,7 @@ describe('Tickets API (integration)', () => {
   });
 
   beforeEach(async () => {
-    await dataSource.query('TRUNCATE TABLE tickets RESTART IDENTITY');
+    await dataSource.query('TRUNCATE TABLE tickets, ticket_events RESTART IDENTITY');
   });
 
   afterAll(async () => {

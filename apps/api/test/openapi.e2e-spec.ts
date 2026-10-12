@@ -16,10 +16,15 @@ describe('OpenAPI document', () => {
     await app.close();
   });
 
-  it('documents every tickets endpoint (CRUD + stats) with its request and response schemas', () => {
+  it('documents every endpoint (tickets CRUD, stats and activity) with its request and response schemas', () => {
     const doc = createOpenApiDocument(app);
 
-    expect(Object.keys(doc.paths).sort()).toEqual(['/tickets', '/tickets/stats', '/tickets/{id}']);
+    expect(Object.keys(doc.paths).sort()).toEqual([
+      '/activity',
+      '/tickets',
+      '/tickets/stats',
+      '/tickets/{id}',
+    ]);
     expect(doc.paths['/tickets']?.post?.responses['201']).toBeDefined();
     expect(
       doc.paths['/tickets']?.get?.parameters?.map((p) => ('name' in p ? p.name : p.$ref)),
@@ -36,6 +41,8 @@ describe('OpenAPI document', () => {
         TicketStatsResponseDto: expect.any(Object),
         TicketStatus: expect.objectContaining({ enum: ['open', 'in_progress', 'closed'] }),
         TicketPriority: expect.objectContaining({ enum: ['low', 'medium', 'high'] }),
+        TicketEventResponseDto: expect.any(Object),
+        TicketEventType: expect.objectContaining({ enum: ['created', 'updated', 'deleted'] }),
       }),
     );
   });

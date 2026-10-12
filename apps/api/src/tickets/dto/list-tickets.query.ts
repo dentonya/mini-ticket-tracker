@@ -1,15 +1,9 @@
-import {
-  PAGINATION_DEFAULT_LIMIT,
-  PAGINATION_MAX_LIMIT,
-  TICKET_STATUSES,
-  type ListTicketsQuery,
-  type TicketStatus,
-} from '@mtt/shared';
+import { TICKET_STATUSES, type ListTicketsQuery, type TicketStatus } from '@mtt/shared';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, Max, Min } from 'class-validator';
+import { IsIn, IsOptional } from 'class-validator';
+import { PaginationQueryDto } from '../../common/pagination.query';
 
-export class ListTicketsQueryDto implements ListTicketsQuery {
+export class ListTicketsQueryDto extends PaginationQueryDto implements ListTicketsQuery {
   @ApiPropertyOptional({
     enum: TICKET_STATUSES,
     enumName: 'TicketStatus',
@@ -18,23 +12,4 @@ export class ListTicketsQueryDto implements ListTicketsQuery {
   @IsOptional()
   @IsIn(TICKET_STATUSES)
   status?: TicketStatus;
-
-  @ApiPropertyOptional({ minimum: 1, default: 1 })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  page: number = 1;
-
-  @ApiPropertyOptional({
-    minimum: 1,
-    maximum: PAGINATION_MAX_LIMIT,
-    default: PAGINATION_DEFAULT_LIMIT,
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(PAGINATION_MAX_LIMIT)
-  limit: number = PAGINATION_DEFAULT_LIMIT;
 }
