@@ -98,6 +98,11 @@ Postgres listens on port **5434**, not 5432, so it won't clash with a Postgres a
 | `pnpm typecheck` | `tsc --noEmit` across the workspace                         |
 | `pnpm db:down`   | Stop the database container (data stays in a Docker volume) |
 
+### Troubleshooting
+
+- **The API returns 404 for a route that exists, or the UI shows errors after pulling changes.** The API's watch mode may be running an old build. This happens when `packages/shared` changes, because the API consumes the shared package's compiled output and TypeScript's watcher doesn't track it. Stop `pnpm dev` and start it again; it rebuilds `@mtt/shared` first.
+- **Port 5434 is already in use.** Start Postgres on another port with `POSTGRES_PORT=5435 pnpm db:up`, then set `DATABASE_URL` to match.
+
 ## API reference
 
 Base URL: `http://localhost:3000`. JSON in, JSON out.
