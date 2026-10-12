@@ -218,6 +218,10 @@ The screens follow the provided mockups and their "Kinetic Engine" design system
 <details>
 <summary>More screenshots</summary>
 
+Board filtered to Open:
+
+![Board filtered to Open](docs/screenshots/board-filtered.png)
+
 | Create Ticket                                 | Ticket detail                                 |
 | --------------------------------------------- | --------------------------------------------- |
 | ![Create ticket](docs/screenshots/create.png) | ![Ticket drawer](docs/screenshots/drawer.png) |
