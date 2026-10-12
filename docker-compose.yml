@@ -2,17 +2,21 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: mini-ticket-tracker-db
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: tickets
-      POSTGRES_PASSWORD: tickets
-      POSTGRES_DB: tickets
+      # Local-development defaults. On a server, set a strong POSTGRES_PASSWORD (e.g. in a
+      # .env file next to this compose file) before the first `docker compose up`.
+      POSTGRES_USER: ${POSTGRES_USER:-tickets}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tickets}
+      POSTGRES_DB: ${POSTGRES_DB:-tickets}
     ports:
-      - '${POSTGRES_PORT:-5434}:5432'
+      # Bound to localhost so the database is never reachable from other machines.
+      - '127.0.0.1:${POSTGRES_PORT:-5434}:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./docker/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql:ro
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U tickets -d tickets']
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
       interval: 2s
       timeout: 3s
       retries: 20
