@@ -26,10 +26,10 @@ export interface Ticket {
   createdAt: string;
 }
 
+/** New tickets always start as `open`; status changes go through UpdateTicketRequest. */
 export interface CreateTicketRequest {
   title: string;
   description?: string;
-  status?: TicketStatus;
   priority?: TicketPriority;
 }
 

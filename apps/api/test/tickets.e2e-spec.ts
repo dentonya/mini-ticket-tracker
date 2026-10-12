@@ -28,6 +28,12 @@ describe('Tickets API (integration)', () => {
 
   const createTicket = (body: object) => request(app.getHttpServer()).post('/tickets').send(body);
 
+  /** Tickets always start open, so other statuses are reached the way clients do: via PATCH. */
+  const createTicketWithStatus = async (title: string, status: string) => {
+    const { body } = await createTicket({ title });
+    await request(app.getHttpServer()).patch(`/tickets/${body.id}`).send({ status }).expect(200);
+  };
+
   describe('POST /tickets', () => {
     it('creates a ticket with defaults applied', async () => {
       const res = await createTicket({ title: '  Login page 500s  ', description: 'Since deploy' });
@@ -44,12 +50,12 @@ describe('Tickets API (integration)', () => {
       expect(Number.isNaN(Date.parse(res.body.createdAt))).toBe(false);
     });
 
-    it('accepts an explicit status and priority', async () => {
-      const res = await createTicket({ title: 'Hotfix', status: 'in_progress', priority: 'high' });
+    it('accepts an explicit priority and always starts the ticket as open', async () => {
+      const res = await createTicket({ title: 'Hotfix', priority: 'high' });
 
       expect(res.status).toBe(201);
       expect(res.body).toMatchObject({
-        status: 'in_progress',
+        status: 'open',
         priority: 'high',
         description: null,
       });
@@ -59,7 +65,7 @@ describe('Tickets API (integration)', () => {
       ['missing title', {}],
       ['blank title', { title: '   ' }],
       ['title over 120 chars', { title: 'x'.repeat(121) }],
-      ['unknown status', { title: 'Bug', status: 'done' }],
+      ['a status (tickets always start open)', { title: 'Bug', status: 'in_progress' }],
       ['unknown priority', { title: 'Bug', priority: 'urgent' }],
       ['unexpected field', { title: 'Bug', assignee: 'alex' }],
     ])('rejects %s with 400', async (_case, body) => {
@@ -73,7 +79,7 @@ describe('Tickets API (integration)', () => {
   describe('GET /tickets', () => {
     it('filters by status and paginates newest first', async () => {
       for (const title of ['A', 'B', 'C']) await createTicket({ title });
-      await createTicket({ title: 'Done one', status: 'closed' });
+      await createTicketWithStatus('Done one', 'closed');
 
       const page1 = await request(app.getHttpServer()).get('/tickets?status=open&page=1&limit=2');
       const page2 = await request(app.getHttpServer()).get('/tickets?status=open&page=2&limit=2');
@@ -88,7 +94,7 @@ describe('Tickets API (integration)', () => {
 
     it('returns every ticket when no status filter is given', async () => {
       await createTicket({ title: 'Open' });
-      await createTicket({ title: 'Closed', status: 'closed' });
+      await createTicketWithStatus('Closed', 'closed');
 
       const res = await request(app.getHttpServer()).get('/tickets');
 
@@ -155,7 +161,7 @@ describe('Tickets API (integration)', () => {
     it('counts tickets grouped by status and reflects updates', async () => {
       await createTicket({ title: 'A' });
       await createTicket({ title: 'B' });
-      await createTicket({ title: 'C', status: 'in_progress' });
+      await createTicketWithStatus('C', 'in_progress');
       const { body: toClose } = await createTicket({ title: 'D' });
       await request(app.getHttpServer()).patch(`/tickets/${toClose.id}`).send({ status: 'closed' });
 

@@ -20,7 +20,6 @@ export class TicketsService {
     const ticket = this.tickets.create({
       title: dto.title,
       description: dto.description || null,
-      status: dto.status,
       priority: dto.priority,
     });
     return this.tickets.save(ticket);

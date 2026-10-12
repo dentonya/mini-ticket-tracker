@@ -1,15 +1,13 @@
 import {
   TICKET_DESCRIPTION_MAX_LENGTH,
   TICKET_PRIORITIES,
-  TICKET_STATUSES,
   TICKET_TITLE_MAX_LENGTH,
   type TicketPriority,
-  type TicketStatus,
 } from '@mtt/shared';
 import { AlertCircle, SquarePlus, X } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { useCreateTicket } from '../api/tickets';
-import { PRIORITY_META, STATUS_META } from '../lib/ticket-meta';
+import { PRIORITY_META } from '../lib/ticket-meta';
 import { Dialog } from './Dialog';
 
 interface CreateTicketDialogProps {
@@ -39,13 +37,12 @@ function CreateTicketForm({ onDone }: { onDone: () => void }) {
   const createTicket = useCreateTicket();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [status, setStatus] = useState<TicketStatus>('open');
   const [priority, setPriority] = useState<TicketPriority>('medium');
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     createTicket.mutate(
-      { title: title.trim(), description: description.trim() || undefined, status, priority },
+      { title: title.trim(), description: description.trim() || undefined, priority },
       { onSuccess: onDone },
     );
   };
@@ -118,41 +115,26 @@ function CreateTicketForm({ onDone }: { onDone: () => void }) {
           />
         </div>
 
-        <div className="grid gap-4 rounded-lg bg-surface-container p-4 sm:grid-cols-2">
-          <div>
-            <label htmlFor="ticket-priority" className="label">
-              Priority
-            </label>
-            <select
-              id="ticket-priority"
-              className="input"
-              value={priority}
-              onChange={(e) => setPriority(e.target.value as TicketPriority)}
-            >
-              {TICKET_PRIORITIES.map((p) => (
-                <option key={p} value={p}>
-                  {PRIORITY_META[p].label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label htmlFor="ticket-status" className="label">
-              Status
-            </label>
-            <select
-              id="ticket-status"
-              className="input"
-              value={status}
-              onChange={(e) => setStatus(e.target.value as TicketStatus)}
-            >
-              {TICKET_STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {STATUS_META[s].label}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div className="rounded-lg bg-surface-container p-4">
+          <label htmlFor="ticket-priority" className="label">
+            Priority
+          </label>
+          <select
+            id="ticket-priority"
+            className="input"
+            value={priority}
+            onChange={(e) => setPriority(e.target.value as TicketPriority)}
+          >
+            {TICKET_PRIORITIES.map((p) => (
+              <option key={p} value={p}>
+                {PRIORITY_META[p].label}
+              </option>
+            ))}
+          </select>
+          <p className="mt-2 text-body-sm text-outline">
+            New tickets start as <span className="text-on-surface-variant">Open</span>. Change the
+            status from the board or the ticket details.
+          </p>
         </div>
 
         {createTicket.isError && (
