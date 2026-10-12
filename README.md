@@ -60,7 +60,7 @@ A small support-ticket tracker: a NestJS REST API on PostgreSQL and a React UI i
 
 ### Prerequisites
 
-- Node.js 20 or newer (22 recommended; see `.nvmrc`)
+- Node.js 22.13 or newer (required by pnpm 11; see `.nvmrc`)
 - pnpm 11 (`corepack enable` picks up the version pinned in `package.json`)
 - Docker (for PostgreSQL)
 
