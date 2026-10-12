@@ -162,7 +162,7 @@ curl -X POST localhost:3000/tickets -H 'Content-Type: application/json' \
 }
 ```
 
-`status` and `priority` are optional on create.
+`description` and `priority` are optional. Every new ticket starts as `open`. Sending a `status` returns 400; change the status afterwards with `PATCH`.
 
 **List**: `GET /tickets?status=open&page=1&limit=20`
 
@@ -207,13 +207,13 @@ Every error uses NestJS's standard shape:
 
 The screens follow the provided mockups and their "Kinetic Engine" design system: the same colour tokens, Inter and JetBrains Mono, and the pill-style badges. Each screen is cut down to the fields in the data model. The mockups also show assignees, sprints, PRs and velocity charts. Those features have no backing data, so I left them out rather than fake them.
 
-| Screen                       | What you can do                                                                                                                                                                                                  | Requirement covered                      |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| **Board** (`/`)              | One column per status, each loaded page by page with **Load more**. A progress bar shows the share of tickets closed. Change a card's status from its dropdown to move it to another column.                     | List with status/priority, change status |
-| **All Tickets** (`/tickets`) | A table with status filter tabs (showing counts) and Previous/Next pagination. You can change status and priority inline. The filter and page are kept in the URL, so views can be linked and survive a refresh. | List, filter, pagination, change status  |
-| **Create Ticket** (dialog)   | Opens from **New Ticket**, **Add Ticket**, or by pressing **C**. Title (with a 0/120 counter), description, priority and status. Validation messages appear only after you interact with a field.                | Create form                              |
-| **Ticket detail** (drawer)   | Click any ticket to see its full details and edit its status and priority.                                                                                                                                       | Change status                            |
-| **Analytics** (`/analytics`) | Count cards and a donut chart of the status breakdown, from `GET /tickets/stats`.                                                                                                                                | Uses the stats endpoint                  |
+| Screen                       | What you can do                                                                                                                                                                                                                                                                                                                                                     | Requirement covered                              |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| **Board** (`/`)              | One column per status, each loaded page by page with **Load more**. A progress bar shows the share of tickets closed. **All / Open / In Progress / Closed** filter buttons (with counts) narrow the board to one status, shown as a single full-width column. The filter is kept in the URL. Change a card's status from its dropdown to move it to another column. | List with status/priority, filter, change status |
+| **All Tickets** (`/tickets`) | A table with the same status filter buttons as the board and Previous/Next pagination. You can change status and priority inline. The filter and page are kept in the URL, so views can be linked and survive a refresh.                                                                                                                                            | List, filter, pagination, change status          |
+| **Create Ticket** (dialog)   | Opens from **New Ticket**, **Add Ticket**, or by pressing **C**. Title (with a 0/120 counter), description and priority. There is no status field: new tickets always start as Open. Validation messages appear only after you interact with a field.                                                                                                               | Create form                                      |
+| **Ticket detail** (drawer)   | Click any ticket to see its full details and edit its status and priority.                                                                                                                                                                                                                                                                                          | Change status                                    |
+| **Analytics** (`/analytics`) | Count cards and a donut chart of the status breakdown, from `GET /tickets/stats`.                                                                                                                                                                                                                                                                                   | Uses the stats endpoint                          |
 
 <details>
 <summary>More screenshots</summary>
@@ -247,7 +247,7 @@ pnpm test
 
 The integration tests in [apps/api/test/](apps/api/test/) start the full Nest application, with the same `ValidationPipe` setup as `main.ts`. They send real HTTP requests with Supertest to a real PostgreSQL database, `tickets_test`, which is kept separate from development data. The `tickets` table is truncated before each test. There are **23 test cases**, covering:
 
-- **POST /tickets**: defaults applied, title trimmed, explicit status and priority, and six invalid payloads that must return 400
+- **POST /tickets**: defaults applied, title trimmed, an explicit priority with the status still `open`, and six invalid payloads (including any attempt to set a status) that must return 400
 - **GET /tickets**: status filter combined with pagination and newest-first order, the unfiltered list, and invalid query parameters
 - **PATCH /tickets/:id**: a successful update, 404 for a missing ticket, an empty body, an immutable field, an invalid enum value, and a non-numeric id
 - **GET /tickets/stats**: zero counts for an empty table, and counts after creates and updates
@@ -261,7 +261,7 @@ I also tested the UI by hand in Chrome: creating a ticket, validation, inline st
 
 **NestJS is a Node.js framework.** The brief lists Node.js/Express, and NestJS runs on Express. I chose it for its structure: modules, DTO validation and dependency injection. I used NestJS 11 rather than the new 12 release because 12 is ESM-only, which complicates the Jest setup for no benefit at this size. **The monorepo** lets the API and UI share the ticket enums and payload types through `@mtt/shared`, so the client and server can't fall out of step. **The database schema** is defined in a hand-written migration, not TypeORM's `synchronize`. Status and priority are Postgres enums, so invalid values are rejected by the database as well as by the API. Migrations run automatically when the API starts, so setup is one command. In production I would run them as a separate deploy step. **I used offset pagination** (`page`/`limit`) because the brief asked for it. It is simple, but it gets slower on deep pages and can skip or repeat rows while data changes. At scale I would switch to cursor pagination on `(created_at, id)`. **After any change, the UI re-fetches all ticket queries** instead of updating the cache optimistically. That costs a few cheap extra requests but makes stale counts impossible, and status changes still feel instant at this data size. **I kept the mockups' look but not their extra features.** Assignees, sprints, PRs and velocity charts need data the model doesn't have, so I didn't build fake versions of them.
 
-**Assumptions:** `PATCH` may change only `status` and `priority`. Any other field returns 400 instead of being silently ignored. Status changes are unrestricted (for example, closed → open is allowed). Create may set an initial status and priority. Titles are trimmed and limited to 120 characters.
+**Assumptions:** `PATCH` may change only `status` and `priority`. Any other field returns 400 instead of being silently ignored. Status changes are unrestricted (for example, closed → open is allowed). New tickets always start as `open` (enforced by the API, not just the form); create may set the priority. Titles are trimmed and limited to 120 characters.
 
 **With more time I would add:**
 
