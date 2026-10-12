@@ -18,7 +18,7 @@ A small support-ticket tracker: a NestJS REST API on PostgreSQL and a React UI i
 
 | Layer    | Choice                                                                           |
 | -------- | -------------------------------------------------------------------------------- |
-| Backend  | Node.js, **NestJS 11**, TypeORM 0.3, class-validator                             |
+| Backend  | Node.js, **NestJS 11**, TypeORM 0.3, class-validator, Swagger (OpenAPI 3)        |
 | Database | **PostgreSQL 16** (Docker Compose)                                               |
 | Frontend | **React 19**, Vite 7, TanStack Query 5, React Router 7, Tailwind CSS 3           |
 | Shared   | `@mtt/shared`: TypeScript enums and API types used by both apps                  |
@@ -36,6 +36,7 @@ A small support-ticket tracker: a NestJS REST API on PostgreSQL and a React UI i
 │   │   │   ├── tickets/          Entity, DTOs, service, controller
 │   │   │   ├── app.module.ts
 │   │   │   ├── app.setup.ts      Global ValidationPipe (shared with tests)
+│   │   │   ├── swagger.ts        OpenAPI document + Swagger UI at /docs
 │   │   │   └── main.ts
 │   │   └── test/                 Integration tests (Jest + Supertest + real Postgres)
 │   └── web/                      React + Vite client
@@ -67,7 +68,7 @@ pnpm db:up          # start PostgreSQL on localhost:5434 and wait until it is he
 pnpm dev            # build @mtt/shared, then run the API (:3000) and web app (:5173)
 ```
 
-Open **http://localhost:5173**.
+Open **http://localhost:5173** for the app and **http://localhost:3000/docs** for the interactive API docs (Swagger UI).
 
 On startup the API runs any pending database migrations, so there is no separate migrate step. The web dev server proxies `/api/*` to `http://localhost:3000`, so the API needs no CORS configuration.
 
@@ -98,6 +99,28 @@ Postgres listens on port **5434**, not 5432, so it won't clash with a Postgres a
 ## API reference
 
 Base URL: `http://localhost:3000`. JSON in, JSON out.
+
+### Interactive docs (Swagger)
+
+While the API is running:
+
+- **Swagger UI:** http://localhost:3000/docs. Browse every endpoint, see request and response schemas with examples, and send requests with **Try it out**.
+- **OpenAPI 3 spec (JSON):** http://localhost:3000/docs-json. Import it into Postman or Insomnia, or use it to generate a client.
+
+The spec is generated from the code, not written by hand:
+
+- Request bodies and query parameters come from the same DTOs that do validation, so lengths, enums and defaults match what the API enforces.
+- Response schemas are classes that implement the `@mtt/shared` types, so the compiler reports any mismatch between the docs and what the web client expects.
+- An integration test ([openapi.e2e-spec.ts](apps/api/test/openapi.e2e-spec.ts)) fails if an endpoint or schema goes missing from the spec.
+
+<details>
+<summary>Screenshot</summary>
+
+![Swagger UI](docs/screenshots/swagger.png)
+
+</details>
+
+The reference below summarises the same information.
 
 ### Data model
 
@@ -222,12 +245,13 @@ pnpm db:up
 pnpm test
 ```
 
-The integration tests in [apps/api/test/tickets.e2e-spec.ts](apps/api/test/tickets.e2e-spec.ts) start the full Nest application, with the same `ValidationPipe` setup as `main.ts`. They send real HTTP requests with Supertest to a real PostgreSQL database, `tickets_test`, which is kept separate from development data. The `tickets` table is truncated before each test. There are **22 test cases**, covering:
+The integration tests in [apps/api/test/](apps/api/test/) start the full Nest application, with the same `ValidationPipe` setup as `main.ts`. They send real HTTP requests with Supertest to a real PostgreSQL database, `tickets_test`, which is kept separate from development data. The `tickets` table is truncated before each test. There are **23 test cases**, covering:
 
 - **POST /tickets**: defaults applied, title trimmed, explicit status and priority, and six invalid payloads that must return 400
 - **GET /tickets**: status filter combined with pagination and newest-first order, the unfiltered list, and invalid query parameters
 - **PATCH /tickets/:id**: a successful update, 404 for a missing ticket, an empty body, an immutable field, an invalid enum value, and a non-numeric id
 - **GET /tickets/stats**: zero counts for an empty table, and counts after creates and updates
+- **OpenAPI document**: every endpoint, its parameters and responses, and the shared enum schemas are present
 
 GitHub Actions ([ci.yml](.github/workflows/ci.yml)) runs the same build and tests against a Postgres service container on every push and pull request.
 
@@ -246,6 +270,5 @@ I also tested the UI by hand in Chrome: creating a ticket, validation, inline st
 - text search and a priority filter
 - an audit/activity log of status changes, as in the detail mockup
 - frontend component tests (Vitest + Testing Library) and a Playwright smoke test
-- OpenAPI docs generated from the DTOs
 - request logging, health checks and rate limiting
 - a production Dockerfile for each app
