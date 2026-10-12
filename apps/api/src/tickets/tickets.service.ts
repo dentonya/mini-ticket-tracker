@@ -40,17 +40,34 @@ export class TicketsService {
     };
   }
 
-  async update(id: number, dto: UpdateTicketDto): Promise<Ticket> {
-    if (dto.status === undefined && dto.priority === undefined) {
-      throw new BadRequestException('Provide at least one of: status, priority');
-    }
-
+  async findOne(id: number): Promise<Ticket> {
     const ticket = await this.tickets.findOneBy({ id });
     if (!ticket) {
       throw new NotFoundException(`Ticket ${id} not found`);
     }
+    return ticket;
+  }
 
-    return this.tickets.save(this.tickets.merge(ticket, dto));
+  async update(id: number, dto: UpdateTicketDto): Promise<Ticket> {
+    const { description, ...rest } = dto;
+    const changes: Partial<Ticket> = { ...rest };
+    if (description !== undefined) changes.description = description || null;
+
+    if (Object.values(changes).every((value) => value === undefined)) {
+      throw new BadRequestException(
+        'Provide at least one of: title, description, status, priority',
+      );
+    }
+
+    const ticket = await this.findOne(id);
+    return this.tickets.save(this.tickets.merge(ticket, changes));
+  }
+
+  async remove(id: number): Promise<void> {
+    const { affected } = await this.tickets.delete({ id });
+    if (!affected) {
+      throw new NotFoundException(`Ticket ${id} not found`);
+    }
   }
 
   async stats(): Promise<TicketStats> {

@@ -16,7 +16,7 @@ describe('OpenAPI document', () => {
     await app.close();
   });
 
-  it('documents every tickets endpoint with its request and response schemas', () => {
+  it('documents every tickets endpoint (CRUD + stats) with its request and response schemas', () => {
     const doc = createOpenApiDocument(app);
 
     expect(Object.keys(doc.paths).sort()).toEqual(['/tickets', '/tickets/stats', '/tickets/{id}']);
@@ -25,6 +25,8 @@ describe('OpenAPI document', () => {
       doc.paths['/tickets']?.get?.parameters?.map((p) => ('name' in p ? p.name : p.$ref)),
     ).toEqual(expect.arrayContaining(['status', 'page', 'limit']));
     expect(doc.paths['/tickets/{id}']?.patch?.responses['404']).toBeDefined();
+    expect(doc.paths['/tickets/{id}']?.get?.responses['200']).toBeDefined();
+    expect(doc.paths['/tickets/{id}']?.delete?.responses['204']).toBeDefined();
     expect(doc.components?.schemas).toEqual(
       expect.objectContaining({
         CreateTicketDto: expect.any(Object),

@@ -1,8 +1,21 @@
 import type { PaginatedResponse, TicketStats } from '@mtt/shared';
-import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiCreatedResponse,
+  ApiNoContentResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
@@ -55,10 +68,23 @@ export class TicketsController {
     return this.ticketsService.stats();
   }
 
+  // Declared after `stats` so that GET /tickets/stats is not captured by the :id route.
+  @Get(':id')
+  @ApiOperation({ summary: 'Get a single ticket' })
+  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiOkResponse({ type: TicketResponseDto })
+  @ApiValidationErrorResponse()
+  @ApiNotFoundResponse({ description: 'Ticket not found', type: ErrorResponseDto })
+  findOne(@Param('id', ParseIntPipe) id: number): Promise<Ticket> {
+    return this.ticketsService.findOne(id);
+  }
+
   @Patch(':id')
   @ApiOperation({
-    summary: "Update a ticket's status and/or priority",
-    description: 'At least one of status or priority is required; other fields are rejected.',
+    summary: 'Update a ticket',
+    description:
+      'Partial update of title, description, status and/or priority. At least one field is ' +
+      'required; any other field is rejected.',
   })
   @ApiParam({ name: 'id', type: Number, example: 1 })
   @ApiOkResponse({ type: TicketResponseDto })
@@ -66,5 +92,16 @@ export class TicketsController {
   @ApiNotFoundResponse({ description: 'Ticket not found', type: ErrorResponseDto })
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateTicketDto): Promise<Ticket> {
     return this.ticketsService.update(id, dto);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete a ticket' })
+  @ApiParam({ name: 'id', type: Number, example: 1 })
+  @ApiNoContentResponse({ description: 'Ticket deleted' })
+  @ApiValidationErrorResponse()
+  @ApiNotFoundResponse({ description: 'Ticket not found', type: ErrorResponseDto })
+  remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
+    return this.ticketsService.remove(id);
   }
 }

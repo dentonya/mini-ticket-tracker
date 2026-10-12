@@ -124,6 +124,32 @@ describe('Tickets API (integration)', () => {
       expect(res.body.title).toBe('Flaky test');
     });
 
+    it('edits title and description, trimming input', async () => {
+      const { body: created } = await createTicket({ title: 'Flaky test' });
+
+      const res = await request(app.getHttpServer())
+        .patch(`/tickets/${created.id}`)
+        .send({ title: '  Flaky login test  ', description: 'Fails 1 in 10 runs' });
+
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({
+        title: 'Flaky login test',
+        description: 'Fails 1 in 10 runs',
+        status: 'open',
+      });
+    });
+
+    it('clears the description when an empty string is sent', async () => {
+      const { body: created } = await createTicket({ title: 'Bug', description: 'Old notes' });
+
+      const res = await request(app.getHttpServer())
+        .patch(`/tickets/${created.id}`)
+        .send({ description: '' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.description).toBeNull();
+    });
+
     it('returns 404 for a ticket that does not exist', async () => {
       const res = await request(app.getHttpServer())
         .patch('/tickets/9999')
@@ -134,7 +160,8 @@ describe('Tickets API (integration)', () => {
 
     it.each([
       ['empty body', {}],
-      ['immutable field', { title: 'Renamed' }],
+      ['blank title', { title: '   ' }],
+      ['immutable field', { createdAt: '2020-01-01T00:00:00.000Z' }],
       ['invalid status', { status: 'resolved' }],
     ])('rejects %s with 400', async (_case, body) => {
       const { body: created } = await createTicket({ title: 'Flaky test' });
@@ -147,6 +174,44 @@ describe('Tickets API (integration)', () => {
     it('rejects a non-numeric id with 400', async () => {
       const res = await request(app.getHttpServer()).patch('/tickets/abc').send({ status: 'open' });
       expect(res.status).toBe(400);
+    });
+  });
+
+  describe('GET /tickets/:id', () => {
+    it('returns a single ticket', async () => {
+      const { body: created } = await createTicket({ title: 'Single' });
+
+      const res = await request(app.getHttpServer()).get(`/tickets/${created.id}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual(created);
+    });
+
+    it('returns 404 for a ticket that does not exist', async () => {
+      const res = await request(app.getHttpServer()).get('/tickets/9999');
+      expect(res.status).toBe(404);
+    });
+  });
+
+  describe('DELETE /tickets/:id', () => {
+    it('deletes the ticket and removes it from listings and stats', async () => {
+      const { body: keep } = await createTicket({ title: 'Keep' });
+      const { body: drop } = await createTicket({ title: 'Drop' });
+
+      const res = await request(app.getHttpServer()).delete(`/tickets/${drop.id}`);
+
+      expect(res.status).toBe(204);
+      expect(res.body).toEqual({});
+      await request(app.getHttpServer()).get(`/tickets/${drop.id}`).expect(404);
+      const list = await request(app.getHttpServer()).get('/tickets');
+      expect(list.body.data.map((t: Ticket) => t.id)).toEqual([keep.id]);
+      const stats = await request(app.getHttpServer()).get('/tickets/stats');
+      expect(stats.body.total).toBe(1);
+    });
+
+    it('returns 404 when the ticket does not exist', async () => {
+      const res = await request(app.getHttpServer()).delete('/tickets/9999');
+      expect(res.status).toBe(404);
     });
   });
 

@@ -33,7 +33,10 @@ export interface CreateTicketRequest {
   priority?: TicketPriority;
 }
 
+/** Partial update: send only the fields to change. An empty description clears it. */
 export interface UpdateTicketRequest {
+  title?: string;
+  description?: string;
   status?: TicketStatus;
   priority?: TicketPriority;
 }

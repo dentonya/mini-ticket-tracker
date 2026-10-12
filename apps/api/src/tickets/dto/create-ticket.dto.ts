@@ -6,10 +6,8 @@ import {
   type TicketPriority,
 } from '@mtt/shared';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
 import { IsIn, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
-
-const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
+import { Trim } from './trim';
 
 /**
  * Status is intentionally absent: every ticket starts as `open` (the column default), and a
@@ -21,7 +19,7 @@ export class CreateTicketDto implements CreateTicketRequest {
     maxLength: TICKET_TITLE_MAX_LENGTH,
     example: 'Login page returns 500',
   })
-  @Transform(trim)
+  @Trim()
   @IsString()
   @IsNotEmpty()
   @MaxLength(TICKET_TITLE_MAX_LENGTH)
@@ -31,7 +29,7 @@ export class CreateTicketDto implements CreateTicketRequest {
     maxLength: TICKET_DESCRIPTION_MAX_LENGTH,
     example: 'Started after the 14:00 deploy. Affects all browsers.',
   })
-  @Transform(trim)
+  @Trim()
   @IsOptional()
   @IsString()
   @MaxLength(TICKET_DESCRIPTION_MAX_LENGTH)
