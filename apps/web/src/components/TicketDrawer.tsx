@@ -1,11 +1,13 @@
 import { TICKET_DESCRIPTION_MAX_LENGTH, TICKET_TITLE_MAX_LENGTH, type Ticket } from '@mtt/shared';
-import { AlertCircle, Pencil, Trash2, X } from 'lucide-react';
+import { AlertCircle, History, Pencil, Trash2, X } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
-import { useDeleteTicket, useUpdateTicket } from '../api/tickets';
+import { useDeleteTicket, useTicketHistory, useUpdateTicket } from '../api/tickets';
 import { syncAriaInvalid } from '../lib/forms';
 import { formatDateTime, ticketKey, timeAgo } from '../lib/ticket-meta';
 import { PriorityBadge, StatusBadge } from './Badges';
+import { ActivityTimeline } from './ActivityTimeline';
 import { Dialog } from './Dialog';
+import { ErrorState, SkeletonRows } from './States';
 import { TicketFieldSelect } from './TicketFieldSelect';
 
 interface TicketDrawerProps {
@@ -168,6 +170,8 @@ function TicketDetail({ initial, onClose }: { initial: Ticket; onClose: () => vo
             )}
           </section>
         )}
+
+        <TicketHistory ticketId={ticket.id} />
       </div>
     </article>
   );
@@ -250,5 +254,36 @@ function EditTicketForm({ ticket, onSaved, onCancel }: EditTicketFormProps) {
         </button>
       </div>
     </form>
+  );
+}
+
+function TicketHistory({ ticketId }: { ticketId: number }) {
+  const history = useTicketHistory(ticketId);
+  const events = history.data?.pages.flatMap((page) => page.data) ?? [];
+
+  return (
+    <section className="card p-4" aria-labelledby="ticket-history-title">
+      <h3 id="ticket-history-title" className="mb-4 flex items-center gap-2 text-headline-sm">
+        <History className="h-4 w-4 text-outline" aria-hidden="true" />
+        History
+      </h3>
+      {history.isPending ? (
+        <SkeletonRows count={2} />
+      ) : history.isError ? (
+        <ErrorState error={history.error} onRetry={() => void history.refetch()} />
+      ) : (
+        <ActivityTimeline events={events} />
+      )}
+      {history.hasNextPage && (
+        <button
+          type="button"
+          className="btn-ghost mt-4 w-full"
+          disabled={history.isFetchingNextPage}
+          onClick={() => void history.fetchNextPage()}
+        >
+          {history.isFetchingNextPage ? 'Loading…' : 'Show older'}
+        </button>
+      )}
+    </section>
   );
 }

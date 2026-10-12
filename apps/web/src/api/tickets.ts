@@ -1,9 +1,11 @@
 import {
   TICKET_STATUSES,
   type CreateTicketRequest,
+  type ListActivityQuery,
   type ListTicketsQuery,
   type PaginatedResponse,
   type Ticket,
+  type TicketEvent,
   type TicketStats,
   type UpdateTicketRequest,
 } from '@mtt/shared';
@@ -24,9 +26,13 @@ const ticketKeys = {
   list: (query: ListTicketsQuery) => [...ticketKeys.all, 'list', query] as const,
   column: (status: Ticket['status']) => [...ticketKeys.all, 'column', status] as const,
   stats: () => [...ticketKeys.all, 'stats'] as const,
+  detail: (id: number) => [...ticketKeys.all, 'detail', id] as const,
+  // Activity lives under the same root so every ticket mutation refreshes it too.
+  activity: (query: ListActivityQuery) => [...ticketKeys.all, 'activity', query] as const,
+  history: (ticketId: number) => [...ticketKeys.all, 'history', ticketId] as const,
 };
 
-function toSearchParams(query: ListTicketsQuery): string {
+function toSearchParams(query: ListTicketsQuery | ListActivityQuery): string {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) {
     if (value !== undefined) params.set(key, String(value));
@@ -165,5 +171,37 @@ export function useDeleteTicket() {
   return useMutation({
     mutationFn: (id: number) => apiRequest<void>(`/tickets/${id}`, { method: 'DELETE' }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ticketKeys.all }),
+  });
+}
+
+/** One ticket by id; `null` disables the query. */
+export function useTicket(id: number | null) {
+  return useQuery({
+    queryKey: ticketKeys.detail(id ?? 0),
+    queryFn: () => apiRequest<Ticket>(`/tickets/${id}`),
+    enabled: id !== null,
+    retry: false,
+  });
+}
+
+const listActivity = (query: ListActivityQuery) =>
+  apiRequest<PaginatedResponse<TicketEvent>>(`/activity${toSearchParams(query)}`);
+
+/** The global activity feed, page by page. */
+export function useActivity(query: ListActivityQuery) {
+  return useQuery({
+    queryKey: ticketKeys.activity(query),
+    queryFn: () => listActivity(query),
+    placeholderData: keepPreviousData,
+  });
+}
+
+/** One ticket's history, newest first, loaded incrementally. */
+export function useTicketHistory(ticketId: number, limit = 10) {
+  return useInfiniteQuery({
+    queryKey: ticketKeys.history(ticketId),
+    queryFn: ({ pageParam }) => listActivity({ ticketId, page: pageParam, limit }),
+    initialPageParam: 1,
+    getNextPageParam: ({ meta }) => (meta.page < meta.totalPages ? meta.page + 1 : undefined),
   });
 }
