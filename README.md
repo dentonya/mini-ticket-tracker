@@ -12,6 +12,8 @@ A small support-ticket tracker: a NestJS REST API on PostgreSQL and a React UI i
 - [API reference](#api-reference)
 - [The UI](#the-ui)
 - [Testing](#testing)
+- [Beyond the brief](#beyond-the-brief)
+- [Design notes](#design-notes)
 - [Decisions & Tradeoffs](#decisions--tradeoffs)
 
 ## Tech stack
@@ -314,19 +316,45 @@ GitHub Actions ([ci.yml](.github/workflows/ci.yml)) runs the same build and test
 
 I also tested the UI in Chrome: creating a ticket, validation, dragging cards between columns, inline status changes, editing and deleting from the drawer, pagination, **Load more**, and the mobile layout.
 
+## Beyond the brief
+
+The required scope is the four endpoints, a single page that lists, creates and re-statuses tickets, and a few API tests. The following were added on top, deliberately and kept small:
+
+- Swagger UI and an OpenAPI spec (`/docs`)
+- Full CRUD:
+  - `GET /tickets/:id` and `DELETE /tickets/:id`
+  - `PATCH` can also edit the title and description
+- A board where you can drag cards between status columns, plus a status filter
+- An Analytics page built on `GET /tickets/stats`
+- An activity log (`GET /activity`), shown as a history in each ticket and as an Activity page
+- GitHub Actions CI
+
+## Design notes
+
+- **Shared contracts:** the API and web app import their enums and payload types from `@mtt/shared`, so a field or enum value can't change on one side only.
+- **Schema:**
+  - It's defined in hand-written migrations, not TypeORM's `synchronize`.
+  - Status and priority are Postgres enums, so the database rejects invalid values as well as the API.
+  - A `(status, created_at)` index serves both the status filter and the newest-first list.
+- **New tickets always start as `open`.** The API enforces this; it isn't just left out of the form.
+- **Activity log:**
+  - Each event is written in the same transaction as the change it describes.
+  - The ticket row is locked while the old and new values are compared, so the log can't disagree with the data, even under concurrent edits.
+  - Events have no foreign key to tickets, so history survives a delete.
+- **UI updates:**
+  - Status changes update every cached view straight away and roll back if the request fails.
+  - Create and delete re-fetch once they succeed.
+
 ## Decisions & Tradeoffs
 
-**NestJS is a Node.js framework.** The brief lists Node.js/Express, and NestJS runs on Express. I chose it for its structure: modules, DTO validation and dependency injection. I used NestJS 11 rather than the new 12 release because 12 is ESM-only, which complicates the Jest setup for no benefit at this size. **The monorepo** lets the API and UI share the ticket enums and payload types through `@mtt/shared`, so the client and server can't fall out of step. **The database schema** is defined in a hand-written migration, not TypeORM's `synchronize`. Status and priority are Postgres enums, so invalid values are rejected by the database as well as by the API. Migrations run automatically when the API starts, so setup is one command. In production I would run them as a separate deploy step. **I used offset pagination** (`page`/`limit`) because the brief asked for it. It is simple, but it gets slower on deep pages and can skip or repeat rows while data changes. At scale I would switch to cursor pagination on `(created_at, id)`. **Status changes update the UI immediately**, before the server confirms, so dragging a card feels instant. The app then re-fetches everything to stay correct, and undoes the change if the request fails. Create and delete just re-fetch, which is simpler and fast enough. **`PATCH` is a partial update** of title, description, status or priority. The brief only asked for status and priority, so the extra fields go beyond it to support full CRUD. **The activity log is written in the same database transaction as the change it describes.** The ticket row is locked while the old and new values are compared, so the log can't disagree with the data, even with concurrent edits. Events have no foreign key to tickets, so history survives a delete. **I kept the mockups' look but not their extra features.** Assignees, sprints, PRs and velocity charts need data the model doesn't have, so I didn't build fake versions of them.
+I used NestJS (which runs on Express) for its module structure and DTO validation, pinned to v11 because v12 is ESM-only and complicates the Jest setup. To keep setup to one command, migrations run automatically when the API starts; in production they would be a separate deploy step. Pagination is offset-based (`page`/`limit`) as the brief asked, which slows down on deep pages and can skip or repeat rows while data changes, so at scale I would switch to cursor pagination on `(created_at, id)`. There is no authentication, so tickets have no reporter or assignee, and the activity log records what changed but not who changed it. The automated tests are API integration tests against a real PostgreSQL database; the UI has no automated tests and was checked by hand in Chrome. Status changes appear instantly and roll back on failure, while create and delete simply re-fetch, which keeps the complex path limited to the interaction that benefits from it. Deletes are permanent; the activity log keeps a record, but there is no undo. I kept the mockups' visual design but left out features with no backing data (assignees, sprints, PRs, velocity charts) rather than faking them. Several features go beyond the brief (listed above); on a real team I would agree that scope before building it. With more time I would add authentication with assignees, UI component and end-to-end tests, deep links to tickets, search and a priority filter, and production Dockerfiles with health checks and request logging.
 
-**Assumptions:** `PATCH` may change title, description, status and priority. `id`, `createdAt` and unknown fields return 400 instead of being silently ignored. Deletes are permanent (no soft delete), but the activity log keeps a record. Tickets created before the log existed get a backfilled "created" event, with status `open` and their current priority. Status changes are unrestricted (for example, closed → open is allowed). New tickets always start as `open` (enforced by the API, not just the form); create may set the priority. Titles are trimmed and limited to 120 characters.
+### Assumptions
 
-**With more time I would add:**
-
-- authentication, with a reporter and assignee on each ticket
-- a ticket detail route (`/tickets/:id`) using the existing endpoint, so tickets can be deep-linked
-- soft delete or undo for deletes
-- text search and a priority filter
-- recording _who_ made each change in the activity log (needs authentication)
-- frontend component tests (Vitest + Testing Library) and a Playwright smoke test
-- request logging, health checks and rate limiting
-- a production Dockerfile for each app
+- New tickets always start as `open`. Create may set the priority, which defaults to `medium`.
+- `PATCH` may change title, description, status and priority.
+  - `id`, `createdAt` and unknown fields return 400 instead of being silently ignored.
+  - An empty description clears it.
+- Status changes are unrestricted; for example, closed → open is allowed.
+- Titles are trimmed, required and limited to 120 characters. Descriptions are limited to 5,000 characters.
+- Tickets created before the activity log existed get a backfilled "created" event, with status `open` and their current priority.
