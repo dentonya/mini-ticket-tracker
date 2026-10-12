@@ -48,7 +48,11 @@ describe('Tickets API (integration)', () => {
       const res = await createTicket({ title: 'Hotfix', status: 'in_progress', priority: 'high' });
 
       expect(res.status).toBe(201);
-      expect(res.body).toMatchObject({ status: 'in_progress', priority: 'high', description: null });
+      expect(res.body).toMatchObject({
+        status: 'in_progress',
+        priority: 'high',
+        description: null,
+      });
     });
 
     it.each([

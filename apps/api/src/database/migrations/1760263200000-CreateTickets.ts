@@ -4,7 +4,9 @@ export class CreateTickets1760263200000 implements MigrationInterface {
   name = 'CreateTickets1760263200000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`CREATE TYPE "ticket_status" AS ENUM ('open', 'in_progress', 'closed')`);
+    await queryRunner.query(
+      `CREATE TYPE "ticket_status" AS ENUM ('open', 'in_progress', 'closed')`,
+    );
     await queryRunner.query(`CREATE TYPE "ticket_priority" AS ENUM ('low', 'medium', 'high')`);
     await queryRunner.query(`
       CREATE TABLE "tickets" (

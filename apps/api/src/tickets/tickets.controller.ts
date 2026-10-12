@@ -26,10 +26,7 @@ export class TicketsController {
   }
 
   @Patch(':id')
-  update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdateTicketDto,
-  ): Promise<Ticket> {
+  update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateTicketDto): Promise<Ticket> {
     return this.ticketsService.update(id, dto);
   }
 }
