@@ -2,16 +2,19 @@ import { TICKET_STATUSES, type Ticket, type TicketStatus } from '@mtt/shared';
 import { useState } from 'react';
 import { useTicketColumn, useTicketStats } from '../api/tickets';
 import { PriorityBadge } from '../components/Badges';
-import { NewTicketButton, PageHeader, useLayout } from '../components/Layout';
+import { NewTicketButton, PageHeader } from '../components/Layout';
 import { ProgressSummary } from '../components/ProgressSummary';
 import { EmptyState, ErrorState, SkeletonRows } from '../components/States';
+import { StatusFilter, useStatusFilter } from '../components/StatusFilter';
 import { TicketDrawer } from '../components/TicketDrawer';
 import { TicketFieldSelect } from '../components/TicketFieldSelect';
 import { STATUS_META, ticketKey, timeAgo } from '../lib/ticket-meta';
 
 export function BoardPage() {
   const stats = useTicketStats();
+  const [filter, setFilter] = useStatusFilter();
   const [selected, setSelected] = useState<Ticket | null>(null);
+  const columns = filter ? [filter] : TICKET_STATUSES;
 
   return (
     <>
@@ -23,12 +26,15 @@ export function BoardPage() {
       />
       {stats.data && <ProgressSummary stats={stats.data} />}
 
-      <div className="grid gap-4 md:grid-cols-3">
-        {TICKET_STATUSES.map((status) => (
+      <StatusFilter value={filter} onChange={setFilter} />
+
+      <div className={`grid gap-4 ${filter ? '' : 'md:grid-cols-3'}`}>
+        {columns.map((status) => (
           <BoardColumn
             key={status}
             status={status}
             count={stats.data?.byStatus[status]}
+            expanded={filter !== undefined}
             onSelect={setSelected}
           />
         ))}
@@ -42,10 +48,12 @@ export function BoardPage() {
 interface BoardColumnProps {
   status: TicketStatus;
   count: number | undefined;
+  /** When the board is filtered to this one status, the column spans the page and cards wrap. */
+  expanded: boolean;
   onSelect: (ticket: Ticket) => void;
 }
 
-function BoardColumn({ status, count, onSelect }: BoardColumnProps) {
+function BoardColumn({ status, count, expanded, onSelect }: BoardColumnProps) {
   const column = useTicketColumn(status);
   const tickets = column.data?.pages.flatMap((page) => page.data) ?? [];
   const meta = STATUS_META[status];
@@ -72,7 +80,7 @@ function BoardColumn({ status, count, onSelect }: BoardColumnProps) {
       ) : tickets.length === 0 ? (
         <EmptyState title={`No ${meta.label.toLowerCase()} tickets`} />
       ) : (
-        <ul className="space-y-2">
+        <ul className={expanded ? 'grid gap-2 sm:grid-cols-2 xl:grid-cols-3' : 'space-y-2'}>
           {tickets.map((ticket) => (
             <li key={ticket.id}>
               <TicketCard ticket={ticket} onSelect={onSelect} />

@@ -1,46 +1,26 @@
-import {
-  PAGINATION_DEFAULT_LIMIT,
-  TICKET_STATUSES,
-  type Ticket,
-  type TicketStatus,
-} from '@mtt/shared';
+import { PAGINATION_DEFAULT_LIMIT, type Ticket } from '@mtt/shared';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { useTicketStats, useTickets } from '../api/tickets';
+import { useTickets } from '../api/tickets';
 import { NewTicketButton, PageHeader } from '../components/Layout';
 import { EmptyState, ErrorState, SkeletonRows } from '../components/States';
+import { StatusFilter, useStatusFilter } from '../components/StatusFilter';
 import { TicketDrawer } from '../components/TicketDrawer';
 import { TicketFieldSelect } from '../components/TicketFieldSelect';
 import { STATUS_META, ticketKey, timeAgo } from '../lib/ticket-meta';
 
-const isStatus = (value: string | null): value is TicketStatus =>
-  TICKET_STATUSES.includes(value as TicketStatus);
-
 export function TicketsPage() {
   // Filter and page live in the URL so views are linkable and survive a refresh.
   const [searchParams, setSearchParams] = useSearchParams();
-  const rawStatus = searchParams.get('status');
-  const status = isStatus(rawStatus) ? rawStatus : undefined;
+  const [status, setFilter] = useStatusFilter();
   const page = Math.max(1, Number(searchParams.get('page')) || 1);
 
   const tickets = useTickets({ status, page, limit: PAGINATION_DEFAULT_LIMIT });
-  const stats = useTicketStats();
   const [selected, setSelected] = useState<Ticket | null>(null);
 
-  const setFilter = (next: TicketStatus | undefined) =>
-    setSearchParams(next ? { status: next } : {});
   const setPage = (next: number) =>
     setSearchParams({ ...(status && { status }), page: String(next) });
-
-  const tabs: { value: TicketStatus | undefined; label: string; count?: number }[] = [
-    { value: undefined, label: 'All', count: stats.data?.total },
-    ...TICKET_STATUSES.map((s) => ({
-      value: s,
-      label: STATUS_META[s].label,
-      count: stats.data?.byStatus[s],
-    })),
-  ];
 
   const meta = tickets.data?.meta;
 
@@ -53,30 +33,7 @@ export function TicketsPage() {
         actions={<NewTicketButton />}
       />
 
-      <div role="tablist" aria-label="Filter by status" className="mb-4 flex flex-wrap gap-1">
-        {tabs.map((tab) => {
-          const active = tab.value === status;
-          return (
-            <button
-              key={tab.label}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => setFilter(tab.value)}
-              className={`flex items-center gap-2 rounded px-3 py-1.5 text-body-sm transition-colors ${
-                active
-                  ? 'bg-surface-high font-medium text-on-surface'
-                  : 'text-outline hover:bg-surface-container hover:text-on-surface'
-              }`}
-            >
-              {tab.label}
-              {tab.count !== undefined && (
-                <span className="font-mono text-mono-sm text-outline">{tab.count}</span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+      <StatusFilter value={status} onChange={setFilter} />
 
       {tickets.isPending ? (
         <SkeletonRows count={5} />

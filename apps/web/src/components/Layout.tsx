@@ -1,9 +1,7 @@
-import { TICKET_STATUSES } from '@mtt/shared';
 import { BarChart3, Columns3, List, Plus, Ticket as TicketIcon } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { NavLink, Outlet, useOutletContext } from 'react-router';
 import { useTicketStats } from '../api/tickets';
-import { STATUS_META } from '../lib/ticket-meta';
 import { CreateTicketDialog } from './CreateTicketDialog';
 
 interface LayoutContext {
@@ -79,30 +77,6 @@ export function Layout() {
                 {to === '/tickets' && stats.data && (
                   <span className="font-mono text-mono-sm text-outline">{stats.data.total}</span>
                 )}
-              </NavLink>
-            ))}
-          </nav>
-
-          <nav aria-label="Status filters" className="space-y-1">
-            <p className="px-2 pb-1 font-mono text-mono-sm uppercase tracking-wider text-outline">
-              By status
-            </p>
-            {TICKET_STATUSES.map((status) => (
-              <NavLink
-                key={status}
-                to={`/tickets?status=${status}`}
-                className="flex items-center justify-between rounded-lg px-2 py-1.5 text-on-surface-variant hover:bg-surface-container hover:text-on-surface"
-              >
-                <span className="flex items-center gap-2">
-                  <span
-                    className={`h-2 w-2 rounded-full ${STATUS_META[status].dot}`}
-                    aria-hidden="true"
-                  />
-                  {STATUS_META[status].label}
-                </span>
-                <span className="font-mono text-mono-sm text-outline">
-                  {stats.data?.byStatus[status] ?? '–'}
-                </span>
               </NavLink>
             ))}
           </nav>
