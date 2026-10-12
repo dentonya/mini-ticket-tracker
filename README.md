@@ -1,6 +1,6 @@
 # Mini Ticket Tracker
 
-A small support-ticket tracker: a NestJS REST API on PostgreSQL and a React UI in one pnpm monorepo. You can create tickets, list them with a status filter and pagination, change a ticket's status or priority, and see ticket counts by status.
+A small support-ticket tracker: a NestJS REST API on PostgreSQL and a React UI in one pnpm monorepo. You can create, view, edit and delete tickets, list them with a status filter and pagination, move them between statuses by dragging cards on a board, and see ticket counts by status.
 
 ![Board](docs/screenshots/board.png)
 
@@ -137,12 +137,14 @@ There is a composite index on `(status, created_at)`. It serves both the status 
 
 ### Endpoints
 
-| Method  | Path             | Description                                   | Success |
-| ------- | ---------------- | --------------------------------------------- | ------- |
-| `POST`  | `/tickets`       | Create a ticket                               | `201`   |
-| `GET`   | `/tickets`       | List tickets: `?status=`, `?page=`, `?limit=` | `200`   |
-| `PATCH` | `/tickets/:id`   | Update a ticket's `status` and/or `priority`  | `200`   |
-| `GET`   | `/tickets/stats` | Count of tickets grouped by status            | `200`   |
+| Method   | Path             | Description                                                | Success |
+| -------- | ---------------- | ---------------------------------------------------------- | ------- |
+| `POST`   | `/tickets`       | Create a ticket                                            | `201`   |
+| `GET`    | `/tickets`       | List tickets: `?status=`, `?page=`, `?limit=`              | `200`   |
+| `GET`    | `/tickets/stats` | Count of tickets grouped by status                         | `200`   |
+| `GET`    | `/tickets/:id`   | Get one ticket                                             | `200`   |
+| `PATCH`  | `/tickets/:id`   | Update any of `title`, `description`, `status`, `priority` | `200`   |
+| `DELETE` | `/tickets/:id`   | Delete a ticket                                            | `204`   |
 
 **Create**
 
@@ -176,7 +178,11 @@ curl -X POST localhost:3000/tickets -H 'Content-Type: application/json' \
 - `page` defaults to 1. `limit` defaults to 20 and can be at most 100.
 - Results are ordered newest first. `id` breaks ties so pages stay stable.
 
-**Update**: `PATCH /tickets/1` with body `{"status":"in_progress"}`. You must send at least one of `status` or `priority`.
+**Get one**: `GET /tickets/1` returns the ticket, or `404`.
+
+**Update**: `PATCH /tickets/1` with any subset of the editable fields, for example `{"status":"in_progress"}` or `{"title":"New title","description":""}`. Send at least one field. Titles are trimmed and can't be blank. An empty `description` clears it. `id` and `createdAt` can't be changed.
+
+**Delete**: `DELETE /tickets/1` returns `204 No Content`, or `404` if the ticket doesn't exist.
 
 **Stats**: `GET /tickets/stats`
 
@@ -194,26 +200,26 @@ Every error uses NestJS's standard shape:
 { "statusCode": 400, "error": "Bad Request", "message": ["title should not be empty"] }
 ```
 
-| Situation                                                              | Status |
-| ---------------------------------------------------------------------- | ------ |
-| Missing or blank title, or an unknown enum value                       | `400`  |
-| Unknown fields, e.g. trying to `PATCH` the `title`                     | `400`  |
-| `PATCH` with an empty body                                             | `400`  |
-| Invalid `page`/`limit` (`0`, `abc`, `limit > 100`) or unknown `status` | `400`  |
-| Non-numeric `:id`                                                      | `400`  |
-| Ticket not found                                                       | `404`  |
+| Situation                                                                         | Status |
+| --------------------------------------------------------------------------------- | ------ |
+| Missing or blank title, or an unknown enum value                                  | `400`  |
+| Unknown or read-only fields, e.g. `PATCH` with `createdAt`, or `status` on create | `400`  |
+| `PATCH` with an empty body                                                        | `400`  |
+| Invalid `page`/`limit` (`0`, `abc`, `limit > 100`) or unknown `status`            | `400`  |
+| Non-numeric `:id`                                                                 | `400`  |
+| Ticket not found                                                                  | `404`  |
 
 ## The UI
 
 The screens follow the provided mockups and their "Kinetic Engine" design system: the same colour tokens, Inter and JetBrains Mono, and the pill-style badges. Each screen is cut down to the fields in the data model. The mockups also show assignees, sprints, PRs and velocity charts. Those features have no backing data, so I left them out rather than fake them.
 
-| Screen                       | What you can do                                                                                                                                                                                                                                                                                                                                                     | Requirement covered                              |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| **Board** (`/`)              | One column per status, each loaded page by page with **Load more**. A progress bar shows the share of tickets closed. **All / Open / In Progress / Closed** filter buttons (with counts) narrow the board to one status, shown as a single full-width column. The filter is kept in the URL. Change a card's status from its dropdown to move it to another column. | List with status/priority, filter, change status |
-| **All Tickets** (`/tickets`) | A table with the same status filter buttons as the board and Previous/Next pagination. You can change status and priority inline. The filter and page are kept in the URL, so views can be linked and survive a refresh.                                                                                                                                            | List, filter, pagination, change status          |
-| **Create Ticket** (dialog)   | Opens from **New Ticket**, **Add Ticket**, or by pressing **C**. Title (with a 0/120 counter), description and priority. There is no status field: new tickets always start as Open. Validation messages appear only after you interact with a field.                                                                                                               | Create form                                      |
-| **Ticket detail** (drawer)   | Click any ticket to see its full details and edit its status and priority.                                                                                                                                                                                                                                                                                          | Change status                                    |
-| **Analytics** (`/analytics`) | Count cards and a donut chart of the status breakdown, from `GET /tickets/stats`.                                                                                                                                                                                                                                                                                   | Uses the stats endpoint                          |
+| Screen                       | What you can do                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Requirement covered                              |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| **Board** (`/`)              | One column per status, each loaded page by page with **Load more**. **Drag a card to another column** to change its status; the card moves straight away and the change is saved in the background. Each card also has a status dropdown, which works with a keyboard and on touch screens. A progress bar shows the share of tickets closed. **All / Open / In Progress / Closed** filter buttons (with counts) narrow the board to one status. The filter is kept in the URL. | List with status/priority, filter, change status |
+| **All Tickets** (`/tickets`) | A table with the same status filter buttons as the board and Previous/Next pagination. You can change status and priority inline. The filter and page are kept in the URL, so views can be linked and survive a refresh.                                                                                                                                                                                                                                                        | List, filter, pagination, change status          |
+| **Create Ticket** (dialog)   | Opens from **New Ticket**, **Add Ticket**, or by pressing **C**. Title (with a 0/120 counter), description and priority. There is no status field: new tickets always start as Open. Validation messages appear only after you interact with a field.                                                                                                                                                                                                                           | Create form                                      |
+| **Ticket detail** (drawer)   | Click any ticket to open it. Change status and priority, **Edit** the title and description, or **Delete** the ticket after confirming.                                                                                                                                                                                                                                                                                                                                         | Change status, plus full CRUD                    |
+| **Analytics** (`/analytics`) | Count cards and a donut chart of the status breakdown, from `GET /tickets/stats`.                                                                                                                                                                                                                                                                                                                                                                                               | Uses the stats endpoint                          |
 
 <details>
 <summary>More screenshots</summary>
@@ -222,11 +228,13 @@ Board filtered to Open:
 
 ![Board filtered to Open](docs/screenshots/board-filtered.png)
 
-| Create Ticket                                 | Ticket detail                                 |
-| --------------------------------------------- | --------------------------------------------- |
-| ![Create ticket](docs/screenshots/create.png) | ![Ticket drawer](docs/screenshots/drawer.png) |
-| **All Tickets**                               | **Analytics**                                 |
-| ![All tickets](docs/screenshots/list.png)     | ![Analytics](docs/screenshots/analytics.png)  |
+| Create Ticket                                 | Ticket detail                                       |
+| --------------------------------------------- | --------------------------------------------------- |
+| ![Create ticket](docs/screenshots/create.png) | ![Ticket drawer](docs/screenshots/drawer.png)       |
+| **Edit ticket**                               | **Delete confirmation**                             |
+| ![Edit ticket](docs/screenshots/edit.png)     | ![Delete confirmation](docs/screenshots/delete.png) |
+| **All Tickets**                               | **Analytics**                                       |
+| ![All tickets](docs/screenshots/list.png)     | ![Analytics](docs/screenshots/analytics.png)        |
 
 Mobile (390 px wide):
 
@@ -236,7 +244,8 @@ Mobile (390 px wide):
 
 UI implementation notes:
 
-- **Server state** lives in TanStack Query. After a create or update, the app re-fetches every ticket query (lists, board columns and stats), so all counts stay consistent without hand-written cache updates.
+- **Server state** lives in TanStack Query. **Updates are optimistic.** The change is applied straight away to every cached copy of the ticket: lists, board columns and stats. Then every ticket query is re-fetched, so the server has the final say. If the request fails, the cache is restored, so a card you dragged goes back to its old column. Create and delete just re-fetch once they succeed.
+- **Drag and drop** uses the browser's native HTML5 drag events, with no extra library. Columns highlight when a card can be dropped on them, and dropping on the card's current column does nothing. Touch devices don't reliably support native drag and drop, so the status dropdown on each card is the fallback.
 - **Dialogs** use the native `<dialog>` element with `showModal()`. The browser handles focus trapping, closing on Esc and making the background inert. `closedby="any"` closes the dialog when you click outside it, and there is a small fallback for Safari, which doesn't support `closedby`.
 - **Form validation** relies on native constraints (`required`, `maxLength`, `pattern`) and the `:user-invalid` CSS pseudo-class, so errors only show after you interact with a field. `aria-invalid` is kept in sync for screen readers. The server validates everything again, and API errors are shown in the form.
 - **Loading, empty and error states** (with a retry button) appear on every data view. The sidebar footer says whether the API can be reached.
@@ -249,28 +258,31 @@ pnpm db:up
 pnpm test
 ```
 
-The integration tests in [apps/api/test/](apps/api/test/) start the full Nest application, with the same `ValidationPipe` setup as `main.ts`. They send real HTTP requests with Supertest to a real PostgreSQL database, `tickets_test`, which is kept separate from development data. The `tickets` table is truncated before each test. There are **23 test cases**, covering:
+The integration tests in [apps/api/test/](apps/api/test/) start the full Nest application, with the same `ValidationPipe` setup as `main.ts`. They send real HTTP requests with Supertest to a real PostgreSQL database, `tickets_test`, which is kept separate from development data. The `tickets` table is truncated before each test. There are **30 test cases**, covering:
 
 - **POST /tickets**: defaults applied, title trimmed, an explicit priority with the status still `open`, and six invalid payloads (including any attempt to set a status) that must return 400
 - **GET /tickets**: status filter combined with pagination and newest-first order, the unfiltered list, and invalid query parameters
-- **PATCH /tickets/:id**: a successful update, 404 for a missing ticket, an empty body, an immutable field, an invalid enum value, and a non-numeric id
+- **GET /tickets/:id**: returns the ticket, and 404 for a missing one
+- **PATCH /tickets/:id**: status/priority updates, title/description edits with trimming, clearing a description, 404 for a missing ticket, an empty body, a blank title, an immutable field, an invalid enum value, and a non-numeric id
+- **DELETE /tickets/:id**: 204, after which the ticket is gone from GET, the list and stats; 404 for a missing ticket
 - **GET /tickets/stats**: zero counts for an empty table, and counts after creates and updates
 - **OpenAPI document**: every endpoint, its parameters and responses, and the shared enum schemas are present
 
 GitHub Actions ([ci.yml](.github/workflows/ci.yml)) runs the same build and tests against a Postgres service container on every push and pull request.
 
-I also tested the UI by hand in Chrome: creating a ticket, validation, inline status changes, the drawer, pagination, **Load more**, and the mobile layout.
+I also tested the UI in Chrome: creating a ticket, validation, dragging cards between columns, inline status changes, editing and deleting from the drawer, pagination, **Load more**, and the mobile layout.
 
 ## Decisions & Tradeoffs
 
-**NestJS is a Node.js framework.** The brief lists Node.js/Express, and NestJS runs on Express. I chose it for its structure: modules, DTO validation and dependency injection. I used NestJS 11 rather than the new 12 release because 12 is ESM-only, which complicates the Jest setup for no benefit at this size. **The monorepo** lets the API and UI share the ticket enums and payload types through `@mtt/shared`, so the client and server can't fall out of step. **The database schema** is defined in a hand-written migration, not TypeORM's `synchronize`. Status and priority are Postgres enums, so invalid values are rejected by the database as well as by the API. Migrations run automatically when the API starts, so setup is one command. In production I would run them as a separate deploy step. **I used offset pagination** (`page`/`limit`) because the brief asked for it. It is simple, but it gets slower on deep pages and can skip or repeat rows while data changes. At scale I would switch to cursor pagination on `(created_at, id)`. **After any change, the UI re-fetches all ticket queries** instead of updating the cache optimistically. That costs a few cheap extra requests but makes stale counts impossible, and status changes still feel instant at this data size. **I kept the mockups' look but not their extra features.** Assignees, sprints, PRs and velocity charts need data the model doesn't have, so I didn't build fake versions of them.
+**NestJS is a Node.js framework.** The brief lists Node.js/Express, and NestJS runs on Express. I chose it for its structure: modules, DTO validation and dependency injection. I used NestJS 11 rather than the new 12 release because 12 is ESM-only, which complicates the Jest setup for no benefit at this size. **The monorepo** lets the API and UI share the ticket enums and payload types through `@mtt/shared`, so the client and server can't fall out of step. **The database schema** is defined in a hand-written migration, not TypeORM's `synchronize`. Status and priority are Postgres enums, so invalid values are rejected by the database as well as by the API. Migrations run automatically when the API starts, so setup is one command. In production I would run them as a separate deploy step. **I used offset pagination** (`page`/`limit`) because the brief asked for it. It is simple, but it gets slower on deep pages and can skip or repeat rows while data changes. At scale I would switch to cursor pagination on `(created_at, id)`. **Status changes update the UI immediately**, before the server confirms, so dragging a card feels instant. The app then re-fetches everything to stay correct, and undoes the change if the request fails. Create and delete just re-fetch, which is simpler and fast enough. **`PATCH` is a partial update** of title, description, status or priority. The brief only asked for status and priority, so the extra fields go beyond it to support full CRUD. **I kept the mockups' look but not their extra features.** Assignees, sprints, PRs and velocity charts need data the model doesn't have, so I didn't build fake versions of them.
 
-**Assumptions:** `PATCH` may change only `status` and `priority`. Any other field returns 400 instead of being silently ignored. Status changes are unrestricted (for example, closed → open is allowed). New tickets always start as `open` (enforced by the API, not just the form); create may set the priority. Titles are trimmed and limited to 120 characters.
+**Assumptions:** `PATCH` may change title, description, status and priority. `id`, `createdAt` and unknown fields return 400 instead of being silently ignored. Deletes are permanent (no soft delete). Status changes are unrestricted (for example, closed → open is allowed). New tickets always start as `open` (enforced by the API, not just the form); create may set the priority. Titles are trimmed and limited to 120 characters.
 
 **With more time I would add:**
 
 - authentication, with a reporter and assignee on each ticket
-- a `GET /tickets/:id` endpoint, so a ticket page can be deep-linked
+- a ticket detail route (`/tickets/:id`) using the existing endpoint, so tickets can be deep-linked
+- soft delete or undo for deletes
 - text search and a priority filter
 - an audit/activity log of status changes, as in the detail mockup
 - frontend component tests (Vitest + Testing Library) and a Playwright smoke test
