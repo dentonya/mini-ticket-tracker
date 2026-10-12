@@ -30,5 +30,7 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
     throw new ApiError(response.status, Array.isArray(message) ? message : [message]);
   }
 
+  // 204 No Content (e.g. DELETE) has no body to parse.
+  if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
 }

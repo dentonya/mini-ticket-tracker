@@ -7,6 +7,7 @@ import {
 import { AlertCircle, SquarePlus, X } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { useCreateTicket } from '../api/tickets';
+import { syncAriaInvalid } from '../lib/forms';
 import { PRIORITY_META } from '../lib/ticket-meta';
 import { Dialog } from './Dialog';
 
@@ -26,11 +27,6 @@ export function CreateTicketDialog({ open, onClose }: CreateTicketDialogProps) {
       <CreateTicketForm onDone={onClose} />
     </Dialog>
   );
-}
-
-/** Mirrors the browser's :user-invalid state into aria-invalid for assistive technology. */
-function syncAriaInvalid(el: HTMLInputElement | HTMLTextAreaElement) {
-  el.setAttribute('aria-invalid', String(el.matches(':user-invalid')));
 }
 
 function CreateTicketForm({ onDone }: { onDone: () => void }) {
