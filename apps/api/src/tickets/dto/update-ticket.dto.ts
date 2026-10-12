@@ -5,6 +5,7 @@ import {
   type TicketStatus,
   type UpdateTicketRequest,
 } from '@mtt/shared';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsIn, IsOptional } from 'class-validator';
 
 /**
@@ -12,10 +13,12 @@ import { IsIn, IsOptional } from 'class-validator';
  * global ValidationPipe's `forbidNonWhitelisted` option rather than silently ignored.
  */
 export class UpdateTicketDto implements UpdateTicketRequest {
+  @ApiPropertyOptional({ enum: TICKET_STATUSES, enumName: 'TicketStatus', example: 'in_progress' })
   @IsOptional()
   @IsIn(TICKET_STATUSES)
   status?: TicketStatus;
 
+  @ApiPropertyOptional({ enum: TICKET_PRIORITIES, enumName: 'TicketPriority', example: 'high' })
   @IsOptional()
   @IsIn(TICKET_PRIORITIES)
   priority?: TicketPriority;
