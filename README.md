@@ -12,6 +12,7 @@ A small support-ticket tracker: a NestJS REST API on PostgreSQL and a React UI i
 - [API reference](#api-reference)
 - [The UI](#the-ui)
 - [Testing](#testing)
+- [Deployment](#deployment)
 - [Beyond the brief](#beyond-the-brief)
 - [Design notes](#design-notes)
 - [Decisions & Tradeoffs](#decisions--tradeoffs)
@@ -315,6 +316,47 @@ The integration tests in [apps/api/test/](apps/api/test/) start the full Nest ap
 GitHub Actions ([ci.yml](.github/workflows/ci.yml)) runs the same build and tests against a Postgres service container on every push and pull request.
 
 I also tested the UI in Chrome: creating a ticket, validation, dragging cards between columns, inline status changes, editing and deleting from the drawer, pagination, **Load more**, and the mobile layout.
+
+## Deployment
+
+This is a plain single-server setup on Ubuntu. Postgres runs in Docker, the API runs as a systemd service, and nginx serves the built web app and proxies `/api` to the API. The files are in [deploy/](deploy/).
+
+```bash
+# 1. Node 22 in /opt/node22 (leaves any system Node untouched), then pnpm via corepack
+curl -fsSL https://nodejs.org/dist/v22.23.3/node-v22.23.3-linux-x64.tar.xz | tar -xJ -C /opt
+ln -sfn /opt/node-v22.23.3-linux-x64 /opt/node22
+export PATH=/opt/node22/bin:$PATH && corepack enable
+
+# 2. Code and build
+cd /var/www && git clone https://github.com/dentonya/mini-ticket-tracker.git && cd mini-ticket-tracker
+pnpm install --frozen-lockfile && pnpm build
+
+# 3. Database with a generated password (bound to 127.0.0.1 only)
+echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)" > .env && chmod 600 .env
+docker compose up -d --wait postgres
+
+# 4. API service on 127.0.0.1:4100; its DATABASE_URL reuses the password from step 3
+mkdir -p /etc/mini-ticket-tracker
+printf 'PORT=4100\nDATABASE_URL=postgres://tickets:%s@127.0.0.1:5434/tickets\n' \
+  "$(grep POSTGRES_PASSWORD .env | cut -d= -f2)" > /etc/mini-ticket-tracker/api.env
+chmod 600 /etc/mini-ticket-tracker/api.env
+cp deploy/mini-ticket-tracker-api.service /etc/systemd/system/
+systemctl daemon-reload && systemctl enable --now mini-ticket-tracker-api
+
+# 5. nginx: set server_name (and listen, to match your other sites), then reload
+cp deploy/nginx.conf /etc/nginx/conf.d/mini-ticket-tracker.conf
+nginx -t && systemctl reload nginx
+```
+
+To update after a push:
+
+```bash
+cd /var/www/mini-ticket-tracker && git pull
+export PATH=/opt/node22/bin:$PATH && pnpm install --frozen-lockfile && pnpm build
+systemctl restart mini-ticket-tracker-api
+```
+
+Migrations run on API start. The web app is static, so the rebuild alone updates it.
 
 ## Beyond the brief
 

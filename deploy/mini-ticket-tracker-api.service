@@ -1,0 +1,27 @@
+# systemd unit for the API. Install with:
+#   cp deploy/mini-ticket-tracker-api.service /etc/systemd/system/
+#   systemctl daemon-reload && systemctl enable --now mini-ticket-tracker-api
+[Unit]
+Description=Mini Ticket Tracker API
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/var/www/mini-ticket-tracker/apps/api
+# PORT and DATABASE_URL (see deploy/api.env.example). Read by systemd as root, so it can be 0600.
+EnvironmentFile=/etc/mini-ticket-tracker/api.env
+Environment=NODE_ENV=production
+ExecStart=/opt/node22/bin/node dist/main.js
+Restart=on-failure
+RestartSec=5
+
+# Run as an unprivileged throwaway user; the API only needs to read its own files.
+DynamicUser=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target
