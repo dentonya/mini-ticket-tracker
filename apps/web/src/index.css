@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .input {
+    @apply w-full rounded border border-surface-highest bg-surface-lowest px-3 py-2 text-body-md text-on-surface outline-none transition-colors placeholder:text-outline focus:border-primary-container focus:ring-2 focus:ring-primary-container/25;
+  }
+  /* Only flag a field as invalid once the user has interacted with it (or tried to submit). */
+  .input:user-invalid {
+    @apply border-error/70;
+  }
+  .field-error {
+    @apply mt-1 hidden items-center gap-1 text-body-sm text-error;
+  }
+  .input:user-invalid ~ .field-error {
+    @apply flex;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded px-3 py-1.5 text-body-sm font-medium transition-all active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-primary text-primary-on hover:bg-primary-fixed;
+  }
+  .btn-ghost {
+    @apply btn border border-white/10 text-on-surface-variant hover:bg-white/5 hover:text-on-surface;
+  }
+  .label {
+    @apply mb-1.5 block font-mono text-label-xs uppercase text-outline;
+  }
+  .card {
+    @apply rounded-lg border border-white/5 bg-surface-low;
+  }
+}
+
+dialog::backdrop {
+  background-color: rgb(6 14 32 / 0.6);
+  backdrop-filter: blur(3px);
+}

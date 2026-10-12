@@ -1,0 +1,31 @@
+{
+  "name": "@mtt/web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Mini Ticket Tracker web client (React + Vite).",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@mtt/shared": "workspace:*",
+    "@tanstack/react-query": "^5.90.0",
+    "lucide-react": "^0.540.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router": "^7.9.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17",
+    "typescript": "5.9.3",
+    "vite": "^7.1.0"
+  }
+}
