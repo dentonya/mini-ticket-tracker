@@ -1,9 +1,12 @@
 import { TICKET_STATUSES, type TicketStats } from '@mtt/shared';
 import { STATUS_META } from '../lib/ticket-meta';
 
+const plural = (n: number, word: string) => (n === 1 ? word : `${word}s`);
+
 /** Segmented progress bar from the board mockup, driven by GET /tickets/stats. */
 export function ProgressSummary({ stats }: { stats: TicketStats }) {
   const { total, byStatus } = stats;
+  const remaining = total - byStatus.closed;
   const percent = (n: number) => (total === 0 ? 0 : Math.round((n / total) * 100));
   // Bar order: done first, then in-flight work, then untouched.
   const segments = [...TICKET_STATUSES].reverse();
@@ -14,11 +17,11 @@ export function ProgressSummary({ stats }: { stats: TicketStats }) {
         <p>
           <span className="text-headline-sm">{percent(byStatus.closed)}% Completed</span>{' '}
           <span className="font-mono text-mono-sm text-outline">
-            ({byStatus.closed} of {total} tickets closed)
+            ({byStatus.closed} of {total} {plural(total, 'ticket')} closed)
           </span>
         </p>
         <p className="font-mono text-mono-sm text-secondary">
-          {total - byStatus.closed} tickets remaining
+          {remaining} {plural(remaining, 'ticket')} remaining
         </p>
       </div>
       <div

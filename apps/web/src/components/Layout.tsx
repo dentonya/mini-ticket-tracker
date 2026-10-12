@@ -122,7 +122,7 @@ export function Layout() {
         </nav>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-6 md:px-6">
+      <main className="w-full px-4 py-6 md:px-6 xl:px-8">
         <Outlet context={{ openCreateTicket } satisfies LayoutContext} />
       </main>
 
