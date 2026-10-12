@@ -1,0 +1,22 @@
+{
+  "name": "mini-ticket-tracker",
+  "private": true,
+  "packageManager": "pnpm@11.9.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "db:up": "docker compose up -d --wait postgres",
+    "db:down": "docker compose down",
+    "build": "pnpm -r build",
+    "dev": "pnpm --filter @mtt/shared build && pnpm --parallel --filter @mtt/api --filter @mtt/web dev",
+    "test": "pnpm --filter @mtt/shared build && pnpm -r test",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2",
+    "typescript": "5.9.3"
+  }
+}
