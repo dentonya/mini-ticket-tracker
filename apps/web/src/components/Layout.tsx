@@ -1,4 +1,4 @@
-import { BarChart3, Columns3, List, Plus, Ticket as TicketIcon } from 'lucide-react';
+import { BarChart3, Columns3, History, List, Plus, Ticket as TicketIcon } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { NavLink, Outlet, useOutletContext } from 'react-router';
 import { useTicketStats } from '../api/tickets';
@@ -14,6 +14,7 @@ const NAV = [
   { to: '/', label: 'Board', icon: Columns3, end: true },
   { to: '/tickets', label: 'All Tickets', icon: List, end: false },
   { to: '/analytics', label: 'Analytics', icon: BarChart3, end: false },
+  { to: '/activity', label: 'Activity', icon: History, end: false },
 ];
 
 const navClass = ({ isActive }: { isActive: boolean }) =>

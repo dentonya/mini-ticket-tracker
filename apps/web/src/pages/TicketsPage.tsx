@@ -1,9 +1,9 @@
 import { PAGINATION_DEFAULT_LIMIT, type Ticket } from '@mtt/shared';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { useTickets } from '../api/tickets';
 import { NewTicketButton, PageHeader } from '../components/Layout';
+import { Pagination } from '../components/Pagination';
 import { EmptyState, ErrorState, SkeletonRows } from '../components/States';
 import { StatusFilter, useStatusFilter } from '../components/StatusFilter';
 import { TicketDrawer } from '../components/TicketDrawer';
@@ -21,8 +21,6 @@ export function TicketsPage() {
 
   const setPage = (next: number) =>
     setSearchParams({ ...(status && { status }), page: String(next) });
-
-  const meta = tickets.data?.meta;
 
   return (
     <>
@@ -105,34 +103,7 @@ export function TicketsPage() {
         </div>
       )}
 
-      {meta && meta.totalPages > 1 && (
-        <nav
-          aria-label="Pagination"
-          className="mt-4 flex items-center justify-between text-body-sm text-outline"
-        >
-          <span className="font-mono text-mono-sm">
-            Page {meta.page} of {meta.totalPages} · {meta.total} tickets
-          </span>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              className="btn-ghost"
-              disabled={page <= 1}
-              onClick={() => setPage(page - 1)}
-            >
-              <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Previous
-            </button>
-            <button
-              type="button"
-              className="btn-ghost"
-              disabled={page >= meta.totalPages}
-              onClick={() => setPage(page + 1)}
-            >
-              Next <ChevronRight className="h-4 w-4" aria-hidden="true" />
-            </button>
-          </div>
-        </nav>
-      )}
+      <Pagination meta={tickets.data?.meta} onPageChange={setPage} noun="tickets" />
 
       <TicketDrawer ticket={selected} onClose={() => setSelected(null)} />
     </>

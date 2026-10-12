@@ -22,6 +22,8 @@ export function ActivityTimeline({
   showTicket = false,
   onOpenTicket,
 }: ActivityTimelineProps) {
+  // Tickets these events show as deleted can't be opened, whichever of their events is clicked.
+  const deletedIds = new Set(events.filter((e) => e.type === 'deleted').map((e) => e.ticketId));
   return (
     <ol className="relative space-y-4 before:absolute before:bottom-2 before:left-[11px] before:top-2 before:w-px before:bg-white/10">
       {events.map((event) => {
@@ -35,7 +37,12 @@ export function ActivityTimeline({
               <Icon className="h-3 w-3" />
             </span>
             <div className="min-w-0 flex-1 space-y-1 pt-0.5">
-              {showTicket && <TicketReference event={event} onOpenTicket={onOpenTicket} />}
+              {showTicket && (
+                <TicketReference
+                  event={event}
+                  onOpenTicket={deletedIds.has(event.ticketId) ? undefined : onOpenTicket}
+                />
+              )}
               <ul className="space-y-1">
                 {describeEvent(event).map((line, i) => (
                   <li key={i} className="flex flex-wrap items-center gap-1.5 text-body-md">
@@ -90,8 +97,7 @@ function TicketReference({
       <span className="font-medium text-on-surface">{event.ticketTitle}</span>
     </>
   );
-  // A deleted ticket can no longer be opened.
-  if (!onOpenTicket || event.type === 'deleted') return <p className="truncate">{label}</p>;
+  if (!onOpenTicket) return <p className="truncate">{label}</p>;
   return (
     <button
       type="button"
